@@ -3,7 +3,7 @@
 """
 Script de OSINT para investigação de perfis do Instagram
 Script original de Bruno Fraga @brunofragax
-Restaurado e Corrigido por Manus AI
+Restaurado e Corrigido por Manus AI (Otimizado para Kali Linux)
 """
 
 import requests
@@ -33,11 +33,12 @@ class Colors:
 class InstagramInvestigatorCLI:
     def __init__(self):
         self.current_data = None
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
         self.session = requests.Session()
+        # User-Agent de alta fidelidade para evitar bloqueios no Kali
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
         
     def print_banner(self):
-        """Exibe banner da aplicação"""
+        """Exibe banner da aplicação original"""
         banner = f"""
 {Colors.HEADER}{Colors.BOLD}
 ╔══════════════════════════════════════════════════════════════╗
@@ -53,7 +54,7 @@ class InstagramInvestigatorCLI:
         print(banner)
         
     def print_tutorial(self):
-        """Exibe tutorial para obter session ID"""
+        """Exibe tutorial original para obter session ID"""
         tutorial = f"""
 {Colors.OKCYAN}{Colors.BOLD}📋 Como obter o Session ID do Instagram:{Colors.ENDC}
 
@@ -106,15 +107,24 @@ class InstagramInvestigatorCLI:
         print(f"{Colors.WARNING}⚠️  {message}{Colors.ENDC}")
 
     def get_user_id(self, username, session_id):
-        """Obtém ID do usuário com múltiplos fallbacks"""
+        """Obtém ID do usuário com headers avançados e fallbacks"""
+        # Headers de alta fidelidade para Kali Linux
         headers = {
-            "User-Agent": self.user_agent,
-            "X-IG-App-ID": "936619743392459",
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": f"https://www.instagram.com/{username}/",
-            "Accept": "*/*",
-            "X-ASBD-ID": "129477",
-            "X-IG-WWW-Claim": "0",
+            "authority": "www.instagram.com",
+            "accept": "*/*",
+            "accept-language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "referer": f"https://www.instagram.com/{username}/",
+            "sec-ch-ua": '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": self.user_agent,
+            "x-asbd-id": "129477",
+            "x-ig-app-id": "936619743392459",
+            "x-ig-www-claim": "0",
+            "x-requested-with": "XMLHttpRequest"
         }
         url = f'https://www.instagram.com/api/v1/users/web_profile_info/?username={username}'
         
@@ -127,25 +137,28 @@ class InstagramInvestigatorCLI:
         except:
             pass
 
-        # Fallback HTML Scraping
+        # Fallback HTML Scraping robusto
         try:
             url_html = f'https://www.instagram.com/{username}/'
             resp_html = self.session.get(url_html, headers={"User-Agent": self.user_agent}, cookies={'sessionid': session_id}, timeout=30)
-            match = re.search(r'"profilePage_([0-9]+)"', resp_html.text)
-            if match: return {"id": match.group(1), "error": None}
-            match = re.search(r'"user_id":"([0-9]+)"', resp_html.text)
-            if match: return {"id": match.group(1), "error": None}
+            for pattern in [r'"profilePage_([0-9]+)"', r'"user_id":"([0-9]+)"', r'"id":"([0-9]+)"']:
+                match = re.search(pattern, resp_html.text)
+                if match: return {"id": match.group(1), "error": None}
         except:
             pass
 
         return {"id": None, "error": "Não foi possível obter o ID do usuário."}
 
     def get_user_info(self, user_id, session_id):
-        """Obtém informações detalhadas"""
-        headers = {'User-Agent': 'Instagram 64.0.0.14.96', 'X-IG-App-ID': '936619743392459'}
+        """Obtém informações detalhadas via API interna"""
+        headers = {
+            'User-Agent': 'Instagram 64.0.0.14.96',
+            'X-IG-App-ID': '936619743392459',
+            'Cookie': f'sessionid={session_id}'
+        }
         url = f'https://i.instagram.com/api/v1/users/{user_id}/info/'
         try:
-            response = self.session.get(url, headers=headers, cookies={'sessionid': session_id}, timeout=30)
+            response = self.session.get(url, headers=headers, timeout=30)
             data = response.json()
             user_info = data.get("user")
             if user_info:
@@ -156,6 +169,7 @@ class InstagramInvestigatorCLI:
         return {"user": None, "error": "Falha ao obter informações detalhadas."}
 
     def advanced_lookup(self, username):
+        """Lookup avançado original"""
         data_payload = "signed_body=SIGNATURE." + quote_plus(json.dumps(
             {"q": username, "skip_recovery": "1"}, separators=(",", ":")
         ))
@@ -170,21 +184,16 @@ class InstagramInvestigatorCLI:
         except:
             return {"user": {}, "error": "Lookup avançado falhou"}
 
-    def investigate_profile(self, username, session_id, manual_id=None):
+    def investigate_profile(self, username, session_id):
+        """Executa investigação completa com estrutura original"""
         try:
-            if manual_id:
-                user_id = manual_id
-                self.show_success(f"ID fornecido manualmente: {user_id}")
-                web_info = {}
-            else:
-                self.show_progress("Obtendo ID do usuário")
-                id_data = self.get_user_id(username, session_id)
-                if id_data.get("error"): raise Exception(id_data["error"])
-                user_id = id_data["id"]
-                self.show_success(f"ID encontrado: {user_id}")
-                web_info = id_data.get("web_info", {})
+            self.show_progress("Obtendo ID do usuário")
+            id_data = self.get_user_id(username, session_id)
+            if id_data.get("error"): raise Exception(id_data["error"])
+            user_id = id_data["id"]
+            self.show_success(f"ID encontrado: {user_id}")
             
-            time.sleep(1)
+            time.sleep(2) # Delay humano
             self.show_progress("Coletando informações detalhadas")
             info_data = self.get_user_info(user_id, session_id)
             user_info = info_data.get("user", {})
@@ -194,13 +203,14 @@ class InstagramInvestigatorCLI:
             advanced = self.advanced_lookup(username)
             advanced_info = advanced.get("user", {})
             
-            combined = {**web_info, **user_info, **advanced_info}
+            combined = {**(id_data.get("web_info", {})), **user_info, **advanced_info}
             self.current_data = combined
             return combined
         except Exception as e:
             raise Exception(f"Falha na investigação: {str(e)}")
 
     def display_results(self, data):
+        """Exibe resultados com layout original"""
         print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}")
         print(f"📊 RESULTADOS DA INVESTIGAÇÃO")
         print(f"{'='*70}{Colors.ENDC}")
@@ -228,6 +238,7 @@ class InstagramInvestigatorCLI:
         print(f"{'='*70}{Colors.ENDC}")
 
     def export_data(self, data, format_type, filename=None):
+        """Função de exportação original completa"""
         if not filename:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             username = data.get('username', 'unknown')
@@ -253,6 +264,7 @@ class InstagramInvestigatorCLI:
             return None
 
     def interactive_mode(self):
+        """Menu interativo original completo de 4 opções"""
         self.print_banner()
         while True:
             print(f"\n{Colors.BOLD}🔍 MENU PRINCIPAL:{Colors.ENDC}")
@@ -289,14 +301,13 @@ def main():
     parser.add_argument('-s', '--sessionid', help='Session ID')
     parser.add_argument('-o', '--output', help='Arquivo de saída')
     parser.add_argument('-f', '--format', choices=['json', 'csv'], default='json', help='Formato')
-    parser.add_argument('--id', help='ID manual do usuário (para ignorar bloqueio de busca)')
     args = parser.parse_args()
     
     app = InstagramInvestigatorCLI()
     if args.username and args.sessionid:
         app.print_banner()
         try:
-            data = app.investigate_profile(args.username, args.sessionid, manual_id=args.id)
+            data = app.investigate_profile(args.username, args.sessionid)
             app.display_results(data)
             if args.output: app.export_data(data, args.format, args.output)
             else:
@@ -309,4 +320,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+    
